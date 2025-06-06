@@ -116,11 +116,6 @@ define('BASE_URL', 'http://localhost/Uas/');
 - View rental history
 - Manage profile
 
-## Security Features
-- Password hashing
-- SQL injection protection
-- Session management
-- Role-based access control
 
 ## Support
 Untuk bantuan teknis atau pertanyaan, silakan hubungi administrator sistem.
