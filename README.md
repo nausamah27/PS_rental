@@ -19,11 +19,6 @@ Website penyewaan PlayStation dengan sistem manajemen lengkap untuk user dan adm
 - ✅ Laporan transaksi (harian, bulanan, tahunan)
 - ✅ Log penyewaan
 
-## Teknologi
-- **Frontend**: HTML5, CSS3, JavaScript
-- **Backend**: PHP 7.4+
-- **Database**: MySQL 5.7+
-- **Server**: Apache/Nginx
 
 ## Setup Instructions
 
