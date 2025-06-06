@@ -3,7 +3,7 @@ require_once 'includes/config.php';
 require_once 'includes/functions.php';
 
 // New password
-$new_password = 'admin112';
+$new_password = 'admin123';
 $hashed_password = hashPassword($new_password);
 
 // Update admin password
