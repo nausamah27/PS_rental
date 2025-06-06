@@ -32,16 +32,28 @@ if ($console['status'] !== 'available') {
     redirect('index.php');
 }
 
+// Calculate available quantity for display
+$available_quantity = $console['quantity'];
+$rental_query = "SELECT COUNT(*) as rented_count FROM rentals WHERE console_id = '$console_id' AND status IN ('pending', 'active')";
+$rental_result = $conn->query($rental_query);
+$rented_count = 0;
+if ($rental_result) {
+    $rented_count = $rental_result->fetch_assoc()['rented_count'] ?? 0;
+}
+$available_quantity = max(0, $available_quantity - $rented_count);
+
 // Handle rental form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $start_date = $_POST['start_date'] ?? '';
     $end_date = $_POST['end_date'] ?? '';
+    $quantity = isset($_POST['quantity']) ? (int)$_POST['quantity'] : 1;
     
     // Validation
     $errors = [];
     
     if (empty($start_date)) $errors[] = 'Tanggal mulai harus diisi';
     if (empty($end_date)) $errors[] = 'Tanggal selesai harus diisi';
+    if ($quantity < 1) $errors[] = 'Jumlah sewa harus minimal 1';
     
     if (!empty($start_date) && !empty($end_date)) {
         $start = new DateTime($start_date);
@@ -63,13 +75,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     if (empty($errors)) {
-        $result = createRental($_SESSION['user_id'], $console_id, $start_date, $end_date);
+        // Check if requested quantity is available
+        $available_quantity = $console['quantity'];
+        // Count active rentals for this console
+        $rental_query = "SELECT COUNT(*) as rented_count FROM rentals WHERE console_id = '$console_id' AND status IN ('pending', 'active')";
+        $rental_result = $conn->query($rental_query);
+        $rented_count = 0;
+        if ($rental_result) {
+            $rented_count = $rental_result->fetch_assoc()['rented_count'] ?? 0;
+        }
+        $available_quantity = max(0, $available_quantity - $rented_count);
         
-        if ($result) {
-            setAlert('success', 'Penyewaan berhasil dibuat! PlayStation akan segera disiapkan.');
-            redirect('user/my-rentals.php');
+        if ($quantity > $available_quantity) {
+            setAlert('danger', 'Jumlah sewa melebihi jumlah PlayStation yang tersedia.');
         } else {
-            setAlert('danger', 'Gagal membuat penyewaan. Silakan coba lagi.');
+            // Adjust createRental to accept quantity parameter
+            $result = createRentalWithQuantity($_SESSION['user_id'], $console_id, $start_date, $end_date, $quantity);
+            
+            if ($result) {
+                setAlert('success', 'Penyewaan berhasil dibuat! PlayStation akan segera disiapkan.');
+                redirect('user/my-rentals.php');
+            } else {
+                setAlert('danger', 'Gagal membuat penyewaan. Silakan coba lagi.');
+            }
         }
     } else {
         setAlert('danger', implode('<br>', $errors));
@@ -141,6 +169,9 @@ if (isset($_POST['start_date']) && isset($_POST['end_date'])) {
                         <div style="font-size: 1.5rem; font-weight: bold; color: #48bb78; margin-bottom: 1rem;">
                             <?php echo formatCurrency($console['price_per_day']); ?>/hari
                         </div>
+                        <div style="font-size: 1rem; font-weight: bold; color: #2d3748; margin-bottom: 1rem;">
+                            Tersedia: <?php echo $available_quantity; ?> unit
+                        </div>
                         <span class="console-status status-<?php echo $console['status']; ?>">
                             <?php 
                             switch($console['status']) {
@@ -159,23 +190,27 @@ if (isset($_POST['start_date']) && isset($_POST['end_date'])) {
                 <h2 style="margin-bottom: 2rem;">Form Penyewaan</h2>
                 
                 <form method="POST" action="" id="rentalForm">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-                        <div class="form-group">
-                            <label for="start_date">Tanggal Mulai</label>
-                            <input type="date" id="start_date" name="start_date" class="form-control" 
-                                   min="<?php echo date('Y-m-d'); ?>"
-                                   value="<?php echo isset($_POST['start_date']) ? $_POST['start_date'] : date('Y-m-d'); ?>" 
-                                   required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="end_date">Tanggal Selesai</label>
-                            <input type="date" id="end_date" name="end_date" class="form-control" 
-                                   min="<?php echo date('Y-m-d', strtotime('+1 day')); ?>"
-                                   value="<?php echo isset($_POST['end_date']) ? $_POST['end_date'] : ''; ?>" 
-                                   required>
-                        </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <div class="form-group">
+                        <label for="start_date">Tanggal Mulai</label>
+                        <input type="date" id="start_date" name="start_date" class="form-control" 
+                               min="<?php echo date('Y-m-d'); ?>"
+                               value="<?php echo isset($_POST['start_date']) ? $_POST['start_date'] : date('Y-m-d'); ?>" 
+                               required>
                     </div>
+                    
+                    <div class="form-group">
+                        <label for="end_date">Tanggal Selesai</label>
+                        <input type="date" id="end_date" name="end_date" class="form-control" 
+                               min="<?php echo date('Y-m-d', strtotime('+1 day')); ?>"
+                               value="<?php echo isset($_POST['end_date']) ? $_POST['end_date'] : ''; ?>" 
+                               required>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label for="quantity">Jumlah Unit yang Disewa</label>
+                    <input type="number" id="quantity" name="quantity" class="form-control" min="1" value="1" required>
+                </div>
                     
                     <!-- Price Preview -->
                     <div id="pricePreview" style="margin: 2rem 0; padding: 1.5rem; background: #f7fafc; border-radius: 10px; display: none;">
@@ -186,6 +221,9 @@ if (isset($_POST['start_date']) && isset($_POST['end_date'])) {
                             </div>
                             <div>
                                 <strong>Harga per hari:</strong> <?php echo formatCurrency($console['price_per_day']); ?>
+                            </div>
+                            <div>
+                                <strong>Jumlah unit:</strong> <span id="totalQuantity">1</span>
                             </div>
                             <div>
                                 <strong>Total hari:</strong> <span id="totalDays">0</span> hari
@@ -228,21 +266,25 @@ if (isset($_POST['start_date']) && isset($_POST['end_date'])) {
     <script>
         const startDateInput = document.getElementById('start_date');
         const endDateInput = document.getElementById('end_date');
+        const quantityInput = document.getElementById('quantity');
         const pricePreview = document.getElementById('pricePreview');
         const totalDaysSpan = document.getElementById('totalDays');
+        const totalQuantitySpan = document.getElementById('totalQuantity');
         const totalPriceSpan = document.getElementById('totalPrice');
         const pricePerDay = <?php echo $console['price_per_day']; ?>;
 
         function updatePrice() {
             const startDate = new Date(startDateInput.value);
             const endDate = new Date(endDateInput.value);
+            const quantity = parseInt(quantityInput.value) || 1;
             
             if (startDate && endDate && endDate > startDate) {
                 const timeDiff = endDate.getTime() - startDate.getTime();
                 const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
-                const totalPrice = daysDiff * pricePerDay;
+                const totalPrice = daysDiff * pricePerDay * quantity;
                 
                 totalDaysSpan.textContent = daysDiff;
+                totalQuantitySpan.textContent = quantity;
                 totalPriceSpan.textContent = 'Rp ' + totalPrice.toLocaleString('id-ID');
                 pricePreview.style.display = 'block';
                 
@@ -257,6 +299,7 @@ if (isset($_POST['start_date']) && isset($_POST['end_date'])) {
 
         startDateInput.addEventListener('change', updatePrice);
         endDateInput.addEventListener('change', updatePrice);
+        quantityInput.addEventListener('input', updatePrice);
 
         // Initial calculation if dates are set
         if (startDateInput.value && endDateInput.value) {
@@ -269,7 +312,7 @@ if (isset($_POST['start_date']) && isset($_POST['end_date'])) {
             const minEndDate = new Date(selectedDate);
             minEndDate.setDate(minEndDate.getDate() + 1);
             endDateInput.min = minEndDate.toISOString().split('T')[0];
-            
+
             if (endDateInput.value && new Date(endDateInput.value) <= selectedDate) {
                 endDateInput.value = '';
             }

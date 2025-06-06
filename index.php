@@ -122,6 +122,9 @@ if ($filter_type) {
                                     }
                                     ?>
                                 </span>
+                                <div style="margin-top: 0.5rem; font-weight: bold; color: #2f855a;">
+                                    Jumlah tersedia: <?php echo $console['available_quantity'] ?? $console['quantity']; ?>
+                                </div>
                                 
                                 <?php if ($console['status'] === 'available'): ?>
                                     <?php if (isLoggedIn() && !isAdmin()): ?>

@@ -11,72 +11,76 @@ $action = isset($_GET['action']) ? $_GET['action'] : 'list';
 $console_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
 // Handle console actions
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['add_console'])) {
-        $name = $_POST['name'] ?? '';
-        $type = $_POST['type'] ?? '';
-        $description = $_POST['description'] ?? '';
-        $price_per_day = $_POST['price_per_day'] ?? '';
-        
-        // Validation
-        $errors = [];
-        
-        if (empty($name)) $errors[] = 'Nama PlayStation harus diisi';
-        if (empty($type)) $errors[] = 'Tipe PlayStation harus diisi';
-        if (empty($description)) $errors[] = 'Deskripsi harus diisi';
-        if (empty($price_per_day)) $errors[] = 'Harga per hari harus diisi';
-        
-        if (empty($errors)) {
-            $query = "INSERT INTO consoles (name, type, description, price_per_day) 
-                     VALUES (?, ?, ?, ?)";
-            $stmt = $conn->prepare($query);
-            $stmt->bind_param("sssd", $name, $type, $description, $price_per_day);
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        if (isset($_POST['add_console'])) {
+            $name = $_POST['name'] ?? '';
+            $type = $_POST['type'] ?? '';
+            $description = $_POST['description'] ?? '';
+            $price_per_day = $_POST['price_per_day'] ?? '';
+            $quantity = $_POST['quantity'] ?? '';
             
-                if ($stmt->execute()) {
-                    setAlert('success', 'PlayStation berhasil ditambahkan');
-                    redirect('admin/consoles.php');
-                } else {
-                    setAlert('danger', 'Gagal menambahkan PlayStation');
-                }
-        } else {
-            setAlert('danger', implode('<br>', $errors));
-        }
-    }
-    
-    elseif (isset($_POST['edit_console'])) {
-        $console_id = $_POST['console_id'] ?? 0;
-        $name = $_POST['name'] ?? '';
-        $type = $_POST['type'] ?? '';
-        $description = $_POST['description'] ?? '';
-        $price_per_day = $_POST['price_per_day'] ?? '';
-        $status = $_POST['status'] ?? '';
-        
-        // Validation
-        $errors = [];
-        
-        if (empty($name)) $errors[] = 'Nama PlayStation harus diisi';
-        if (empty($type)) $errors[] = 'Tipe PlayStation harus diisi';
-        if (empty($description)) $errors[] = 'Deskripsi harus diisi';
-        if (empty($price_per_day)) $errors[] = 'Harga per hari harus diisi';
-        if (empty($status)) $errors[] = 'Status harus diisi';
-        
-        if (empty($errors)) {
-            $query = "UPDATE consoles 
-                     SET name = ?, type = ?, description = ?, price_per_day = ?, status = ? 
-                     WHERE id = ?";
-            $stmt = $conn->prepare($query);
-            $stmt->bind_param("sssdsi", $name, $type, $description, $price_per_day, $status, $console_id);
+            // Validation
+            $errors = [];
             
-                if ($stmt->execute()) {
-                    setAlert('success', 'PlayStation berhasil diupdate');
-                    redirect('admin/consoles.php');
-                } else {
-                    setAlert('danger', 'Gagal mengupdate PlayStation');
-                }
-        } else {
-            setAlert('danger', implode('<br>', $errors));
+            if (empty($name)) $errors[] = 'Nama PlayStation harus diisi';
+            if (empty($type)) $errors[] = 'Tipe PlayStation harus diisi';
+            if (empty($description)) $errors[] = 'Deskripsi harus diisi';
+            if (empty($price_per_day)) $errors[] = 'Harga per hari harus diisi';
+            if (empty($quantity)) $errors[] = 'Jumlah harus diisi';
+            
+            if (empty($errors)) {
+                $query = "INSERT INTO consoles (name, type, description, price_per_day, quantity) 
+                         VALUES (?, ?, ?, ?, ?)";
+                $stmt = $conn->prepare($query);
+                $stmt->bind_param("sssdi", $name, $type, $description, $price_per_day, $quantity);
+                
+                    if ($stmt->execute()) {
+                        setAlert('success', 'PlayStation berhasil ditambahkan');
+                        redirect('admin/consoles.php');
+                    } else {
+                        setAlert('danger', 'Gagal menambahkan PlayStation');
+                    }
+            } else {
+                setAlert('danger', implode('<br>', $errors));
+            }
         }
-    }
+        
+        elseif (isset($_POST['edit_console'])) {
+            $console_id = $_POST['console_id'] ?? 0;
+            $name = $_POST['name'] ?? '';
+            $type = $_POST['type'] ?? '';
+            $description = $_POST['description'] ?? '';
+            $price_per_day = $_POST['price_per_day'] ?? '';
+            $status = $_POST['status'] ?? '';
+            $quantity = $_POST['quantity'] ?? '';
+            
+            // Validation
+            $errors = [];
+            
+            if (empty($name)) $errors[] = 'Nama PlayStation harus diisi';
+            if (empty($type)) $errors[] = 'Tipe PlayStation harus diisi';
+            if (empty($description)) $errors[] = 'Deskripsi harus diisi';
+            if (empty($price_per_day)) $errors[] = 'Harga per hari harus diisi';
+            if (empty($status)) $errors[] = 'Status harus diisi';
+            if (empty($quantity)) $errors[] = 'Jumlah harus diisi';
+            
+            if (empty($errors)) {
+                $query = "UPDATE consoles 
+                         SET name = ?, type = ?, description = ?, price_per_day = ?, status = ?, quantity = ? 
+                         WHERE id = ?";
+                $stmt = $conn->prepare($query);
+                $stmt->bind_param("sssdsis", $name, $type, $description, $price_per_day, $status, $quantity, $console_id);
+                
+                    if ($stmt->execute()) {
+                        setAlert('success', 'PlayStation berhasil diupdate');
+                        redirect('admin/consoles.php');
+                    } else {
+                        setAlert('danger', 'Gagal mengupdate PlayStation');
+                    }
+            } else {
+                setAlert('danger', implode('<br>', $errors));
+            }
+        }
     
     elseif (isset($_POST['delete_console'])) {
         $console_id = $_POST['console_id'] ?? 0;
@@ -190,6 +194,13 @@ $consoles = getAllConsoles();
                                    value="<?php echo $action === 'edit' ? $console['price_per_day'] : ''; ?>" 
                                    min="0" step="1000" required>
                         </div>
+
+                        <div class="form-group">
+                            <label for="quantity">Jumlah</label>
+                            <input type="number" id="quantity" name="quantity" class="form-control"
+                                   value="<?php echo $action === 'edit' ? $console['quantity'] : ''; ?>"
+                                   min="1" step="1" required>
+                        </div>
                         
                         <?php if ($action === 'edit'): ?>
                             <div class="form-group">
@@ -199,6 +210,12 @@ $consoles = getAllConsoles();
                                     <option value="rented" <?php echo $console['status'] === 'rented' ? 'selected' : ''; ?>>Disewa</option>
                                     <option value="maintenance" <?php echo $console['status'] === 'maintenance' ? 'selected' : ''; ?>>Maintenance</option>
                                 </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="quantity">Jumlah</label>
+                                <input type="number" id="quantity" name="quantity" class="form-control"
+                                       value="<?php echo $action === 'edit' ? $console['quantity'] : ''; ?>"
+                                       min="1" step="1" required>
                             </div>
                         <?php endif; ?>
                         
@@ -225,53 +242,56 @@ $consoles = getAllConsoles();
                             <table class="table">
                                 <thead>
                                     <tr>
-                                        <th>ID</th>
-                                        <th>Nama</th>
-                                        <th>Tipe</th>
-                                        <th>Harga/Hari</th>
-                                        <th>Status</th>
-                                        <th>Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($consoles as $console): ?>
-                                        <tr>
-                                            <td>#<?php echo $console['id']; ?></td>
-                                            <td>
-                                                <?php echo htmlspecialchars($console['name']); ?>
-                                                <br>
-                                                <small style="color: #718096;"><?php echo substr($console['description'], 0, 50) . '...'; ?></small>
-                                            </td>
-                                            <td><?php echo $console['type']; ?></td>
-                                            <td><?php echo formatCurrency($console['price_per_day']); ?></td>
-                                            <td>
-                                                <span class="console-status status-<?php echo $console['status']; ?>">
-                                                    <?php
-                                                    switch($console['status']) {
-                                                        case 'available': echo 'Tersedia'; break;
-                                                        case 'rented': echo 'Disewa'; break;
-                                                        case 'maintenance': echo 'Maintenance'; break;
-                                                    }
-                                                    ?>
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <div style="display: flex; gap: 0.5rem;">
-                                                    <a href="?action=edit&id=<?php echo $console['id']; ?>" class="btn btn-warning" style="padding: 0.25rem 0.5rem;">
-                                                        ✏️ Edit
-                                                    </a>
-                                                    <form method="POST" action="" style="display: inline;" 
-                                                          onsubmit="return confirm('Apakah Anda yakin ingin menghapus PlayStation ini?');">
-                                                        <input type="hidden" name="console_id" value="<?php echo $console['id']; ?>">
-                                                        <button type="submit" name="delete_console" class="btn btn-danger" style="padding: 0.25rem 0.5rem;">
-                                                            🗑️ Hapus
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
+                                <th>ID</th>
+                                <th>Nama</th>
+                                <th>Tipe</th>
+                                <th>Harga/Hari</th>
+                                <th>Jumlah</th>
+                                <th>Status</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php $counter = 1; ?>
+                            <?php foreach ($consoles as $console): ?>
+                                <tr>
+                                    <td>#<?php echo $counter++; ?></td>
+                                    <td>
+                                        <?php echo htmlspecialchars($console['name']); ?>
+                                        <br>
+                                        <small style="color: #718096;"><?php echo substr($console['description'], 0, 50) . '...'; ?></small>
+                                    </td>
+                                    <td><?php echo $console['type']; ?></td>
+                                    <td><?php echo formatCurrency($console['price_per_day']); ?></td>
+                                    <td><?php echo $console['quantity']; ?></td>
+                                    <td>
+                                        <span class="console-status status-<?php echo $console['status']; ?>">
+                                            <?php
+                                            switch($console['status']) {
+                                                case 'available': echo 'Tersedia'; break;
+                                                case 'rented': echo 'Disewa'; break;
+                                                case 'maintenance': echo 'Maintenance'; break;
+                                            }
+                                            ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; gap: 0.5rem;">
+                                            <a href="?action=edit&id=<?php echo $console['id']; ?>" class="btn btn-warning" style="padding: 0.25rem 0.5rem;">
+                                                ✏️ Edit
+                                            </a>
+                                            <form method="POST" action="" style="display: inline;" 
+                                                  onsubmit="return confirm('Apakah Anda yakin ingin menghapus PlayStation ini?');">
+                                                <input type="hidden" name="console_id" value="<?php echo $console['id']; ?>">
+                                                <button type="submit" name="delete_console" class="btn btn-danger" style="padding: 0.25rem 0.5rem;">
+                                                    🗑️ Hapus
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
                             </table>
                         </div>
                     <?php endif; ?>

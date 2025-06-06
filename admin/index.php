@@ -9,9 +9,20 @@ requireAdmin();
 // Get dashboard statistics
 $stats = getDashboardStats();
 
-// Get recent rentals
-$recent_rentals = getAllRentals();
-$recent_rentals = array_slice($recent_rentals, 0, 5); // Get latest 5 rentals
+// Get recent rentals ordered by created_at descending
+$query = "SELECT r.*, u.name as user_name, c.name as console_name, c.type 
+          FROM rentals r 
+          JOIN users u ON r.user_id = u.id 
+          JOIN consoles c ON r.console_id = c.id
+          ORDER BY r.created_at DESC, r.id DESC
+          LIMIT 5";
+$stmt = $conn->prepare($query);
+$stmt->execute();
+$result = $stmt->get_result();
+$recent_rentals = [];
+while ($row = $result->fetch_assoc()) {
+    $recent_rentals[] = $row;
+}
 ?>
 
 <!DOCTYPE html>

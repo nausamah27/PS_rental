@@ -185,9 +185,10 @@ while ($row = $result->fetch_assoc()) {
                                 </tr>
                             </thead>
                             <tbody>
+                                <?php $counter = 1; ?>
                                 <?php foreach ($rentals as $rental): ?>
                                     <tr>
-                                        <td>#<?php echo $rental['id']; ?></td>
+                                        <td>#<?php echo $counter++; ?></td>
                                         <td>
                                             <?php echo htmlspecialchars($rental['user_name']); ?>
                                             <br>

@@ -35,14 +35,30 @@ function getConsoleById($id) {
     return $result->fetch_assoc();
 }
 
-// Function to get all available consoles
+// Function to get all available consoles with adjusted quantity based on active rentals
 function getAvailableConsoles() {
     global $conn;
+    // Get all consoles with status 'available'
     $query = "SELECT * FROM consoles WHERE status = 'available' ORDER BY price_per_day ASC";
     $result = $conn->query($query);
     $consoles = [];
-    while ($row = $result->fetch_assoc()) {
-        $consoles[] = $row;
+    while ($console = $result->fetch_assoc()) {
+        $console_id = $console['id'];
+        $total_quantity = $console['quantity'];
+
+        // Count active rentals for this console
+        $rental_query = "SELECT COUNT(*) as rented_count FROM rentals WHERE console_id = '$console_id' AND status IN ('pending', 'active')";
+        $rental_result = $conn->query($rental_query);
+        $rented_count = 0;
+        if ($rental_result) {
+            $rented_count = $rental_result->fetch_assoc()['rented_count'] ?? 0;
+        }
+
+        // Calculate available quantity
+        $available_quantity = max(0, $total_quantity - $rented_count);
+        $console['available_quantity'] = $available_quantity;
+
+        $consoles[] = $console;
     }
     return $consoles;
 }
@@ -74,29 +90,50 @@ function calculateRentalPrice($console_id, $days) {
     return 0;
 }
 
-// Function to create rental
-function createRental($user_id, $console_id, $start_date, $end_date) {
+// Function to create rental with quantity
+function createRentalWithQuantity($user_id, $console_id, $start_date, $end_date, $quantity) {
     global $conn;
     
     $user_id = sanitize($user_id);
     $console_id = sanitize($console_id);
     $start_date = sanitize($start_date);
     $end_date = sanitize($end_date);
+    $quantity = (int)$quantity;
     
     // Calculate days and total price
     $start = new DateTime($start_date);
     $end = new DateTime($end_date);
     $days = $end->diff($start)->days + 1;
-    $total_price = calculateRentalPrice($console_id, $days);
+    
+    // Get console price per day
+    $console = getConsoleById($console_id);
+    if (!$console) {
+        return false;
+    }
+    $price_per_day = $console['price_per_day'];
+    $total_price = $price_per_day * $days * $quantity;
     
     // Insert rental
-    $query = "INSERT INTO rentals (user_id, console_id, start_date, end_date, total_days, total_price) 
-              VALUES ('$user_id', '$console_id', '$start_date', '$end_date', '$days', '$total_price')";
+    $query = "INSERT INTO rentals (user_id, console_id, start_date, end_date, total_days, total_price, quantity) 
+              VALUES ('$user_id', '$console_id', '$start_date', '$end_date', '$days', '$total_price', '$quantity')";
     
     if ($conn->query($query)) {
-        // Update console status
-        $update_query = "UPDATE consoles SET status = 'rented' WHERE id = '$console_id'";
-        $conn->query($update_query);
+        // Update console status if all units rented out
+        // Check total quantity and rented quantity
+        $total_quantity = $console['quantity'];
+        $rental_query = "SELECT SUM(quantity) as rented_sum FROM rentals WHERE console_id = '$console_id' AND status IN ('pending', 'active')";
+        $rental_result = $conn->query($rental_query);
+        $rented_sum = 0;
+        if ($rental_result) {
+            $rented_sum = $rental_result->fetch_assoc()['rented_sum'] ?? 0;
+        }
+        if ($rented_sum >= $total_quantity) {
+            $update_query = "UPDATE consoles SET status = 'rented' WHERE id = '$console_id'";
+            $conn->query($update_query);
+        } else {
+            $update_query = "UPDATE consoles SET status = 'available' WHERE id = '$console_id'";
+            $conn->query($update_query);
+        }
         return true;
     }
     return false;
@@ -133,7 +170,7 @@ function getAllUsers() {
 // Function to get all consoles (for admin)
 function getAllConsoles() {
     global $conn;
-    $query = "SELECT * FROM consoles ORDER BY created_at DESC";
+    $query = "SELECT *, quantity FROM consoles ORDER BY created_at DESC";
     $result = $conn->query($query);
     $consoles = [];
     while ($row = $result->fetch_assoc()) {
@@ -163,15 +200,15 @@ function getDashboardStats() {
     $result = $conn->query($query);
     $stats['total_users'] = $result->fetch_assoc()['total'];
     
-    // Total consoles
-    $query = "SELECT COUNT(*) as total FROM consoles";
+    // Total consoles (sum of quantity)
+    $query = "SELECT SUM(quantity) as total FROM consoles";
     $result = $conn->query($query);
-    $stats['total_consoles'] = $result->fetch_assoc()['total'];
+    $stats['total_consoles'] = $result->fetch_assoc()['total'] ?? 0;
     
-    // Available consoles
-    $query = "SELECT COUNT(*) as total FROM consoles WHERE status = 'available'";
+    // Available consoles (sum of quantity where status = 'available')
+    $query = "SELECT SUM(quantity) as total FROM consoles WHERE status = 'available'";
     $result = $conn->query($query);
-    $stats['available_consoles'] = $result->fetch_assoc()['total'];
+    $stats['available_consoles'] = $result->fetch_assoc()['total'] ?? 0;
     
     // Active rentals
     $query = "SELECT COUNT(*) as total FROM rentals WHERE status = 'active'";

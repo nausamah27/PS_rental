@@ -105,9 +105,10 @@ if ($status_filter) {
                                 </tr>
                             </thead>
                             <tbody>
+                                <?php $counter = 1; ?>
                                 <?php foreach ($rentals as $rental): ?>
                                     <tr>
-                                        <td>#<?php echo $rental['id']; ?></td>
+                                        <td>#<?php echo $counter++; ?></td>
                                         <td>
                                             <?php echo htmlspecialchars($rental['console_name']); ?>
                                             <br>
